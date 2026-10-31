@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 public class Shooting : MonoBehaviour
 {
     //raycast variables
-    [SerializeField] Transform firePoint_Camera;
+    [SerializeField] Transform reticle;
     [SerializeField] float range = 100f;
     [SerializeField] LayerMask layerMask;
     // input variables
@@ -19,9 +19,10 @@ public class Shooting : MonoBehaviour
     // particles
     GameObject muzzleParticle; 
     GameObject HitParticle;
-    //automatic
+    GunRecoil gunRecoil;
     void Awake()
     {
+        gunRecoil = FindFirstObjectByType<GunRecoil>();
         inputSystem_Actions = new InputSystem_Actions();
         inputSystem_Actions.Player.Attack.performed += ReadAttackInput;
         inputSystem_Actions.Player.Attack.canceled += ReadAttackInput;
@@ -43,17 +44,23 @@ public class Shooting : MonoBehaviour
         //shoot
         if(Time.time < nextShootTime) return;
         nextShootTime = Time.time + shootDelay;
+
+        gunRecoil.Recoil();
+        AudioManager.Instance.PlaySounds(AudioManager.Sound.Shoot);
+        ParticleManager.Instance.PlayParticles(ParticleManager.Particles.MuzzleFlash);
+
+        Ray rayOrigin = Camera.main.ScreenPointToRay(reticle.position);
         RaycastHit hit;
-        if(Physics.Raycast(firePoint_Camera.position, firePoint_Camera.forward, out hit, range, layerMask))
+        //if(Physics.Raycast(firePoint_Camera.position, firePoint_Camera.forward, out hit, range, layerMask))
+        if(Physics.Raycast(rayOrigin, out hit, range, layerMask))
         {
             if(hit.collider.TryGetComponent(out DamageEnemy damageEnemy))
             {
+                ParticleManager.Instance.InstantiateParticles(hit.point, hit.normal);
                 damageEnemy.TakeHit(25f);
                 Debug.Log(damageEnemy.name);
             }
-            Debug.DrawRay(firePoint_Camera.position, firePoint_Camera.forward * hit.distance, Color.yellow);
         }
-        else Debug.DrawRay(firePoint_Camera.position, firePoint_Camera.forward * range, Color.red);
     }
     void OnEnable()
     {
